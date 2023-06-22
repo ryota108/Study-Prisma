@@ -1,93 +1,113 @@
-import express, { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-
+const express = require("express");
+import { Request, Response } from "express";
+const { PrismaClient } = require("@prisma/client");
 const app = express();
 const port = 3000;
 
+const prisma = new PrismaClient();
+const defaultUrl = `https://webservice.recruit.co.jp/hotpepper/gourmet/v1/?key={envKey}&format=json&keyword=高田馬場`;
+
 app.use(express.json());
 
-const prisma = new PrismaClient();
+type BudgetCode = "B1" | "B2" | "B3" | "B4" | "B5";
 
-app.get("/users", async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany({
-    include: { Posts: true },
-  });
-  return res.json(users);
+type genreCode = "G1" | "G2" | "G3" | "G4" | "G5";
+
+const getHotPepperGenreQuery = (genreNames: any) => {
+  let hotPepperGenreKey;
+
+  switch (genreNames) {
+    case "G1":
+      hotPepperGenreKey = "&genre=G013";
+      break;
+    case "G2":
+      hotPepperGenreKey = "&genre=G008&count=20";
+      break;
+    case "G3":
+      hotPepperGenreKey = "&genre=G014&count=15";
+      break;
+    case "G4":
+      hotPepperGenreKey = "&genre=G001&count=100";
+      break;
+    case "G5":
+      hotPepperGenreKey = "&genre=G007,G017&count=40";
+      break;
+  }
+  return hotPepperGenreKey;
+};
+
+const getHotPepperBudgetQuery = (budgetNames: any) => {
+  let hotPepperBudgetKey;
+  switch (budgetNames) {
+    case "B1":
+      hotPepperBudgetKey = "&budget=B009,B010";
+      break;
+    case "B2":
+      hotPepperBudgetKey = "&budget=B001,B011&count=70";
+      break;
+    case "B3":
+      hotPepperBudgetKey = "&budget=B002&count=100";
+      break;
+    case "B4":
+      hotPepperBudgetKey = "&budget=B003&count=55";
+      break;
+    case "B5":
+      hotPepperBudgetKey = "&budget=B008,B004,B005&count=20";
+      break;
+  }
+  return hotPepperBudgetKey;
+};
+
+// レストラン一覧取得
+app.get("/restaurants/all", async (req: Request, res: Response) => {
+  const allRestaurants = await prisma.restaurant.findMany();
+  // const response = await fetch(defaultUrl);
+  // const hotPepperData = await response.json();
+
+  // const mergedData = {
+  //   myRestaurants: allRestaurants,
+  //   hotPepperData: hotPepperData.results,
+  // };
+  // res.json(mergedData)
+  res.json(allRestaurants);
 });
 
-app.get("/users/:id", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const user = await prisma.user.findUnique({
-    include: { Posts: true },
-    where: {
-      id,
-    },
-  });
-  return res.json(user);
-});
+app.get("/restaurants", async (req: Request, res: Response) => {
+  // 型定義
+  const budgetNames = req.query.budget;
+  const genreNames = req.query.genre;
 
-app.post("/users", async (req: Request, res: Response) => {
-  const { name, email } = req.body;
+  const hotPepperBudgetKey = getHotPepperBudgetQuery(budgetNames);
+  const hotPepperGenreKey = getHotPepperGenreQuery(genreNames);
+
   try {
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-      },
+    res.json({
+      prismaKey: budgetNames,
+      hotKey: hotPepperBudgetKey,
+      genreKey: genreNames,
+      hotGenreKey: hotPepperGenreKey,
     });
-    return res.json(user);
-  } catch (e) {
-    return res.status(400).json(e);
+  } catch (error) {
+    console.error("Error retrieving restaurants:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.put("/users/:id", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const { name } = req.body;
-  try {
-    const user = await prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        name,
-      },
-    });
-    return res.json(user);
-  } catch (e) {
-    return res.status(400).json(e);
+// ホットペッパーは&id=のクエリの後にidが続く
+app.get("/restaurants/:id", async (req: Request, res: Response) => {
+  const restaurantId = req.params.id;
+  const isOriginal = restaurantId.includes("original");
+
+  if (isOriginal) {
+    // Prismaの処理
+  } else {
+    //hotPepperの処理
+    // fetch(defaultUrl&id=restaurantId)
   }
+  res.json({ origin: isOriginal, id: restaurantId });
 });
 
-app.delete("/users/:id", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-
-  try {
-    const user = await prisma.user.delete({
-      where: {
-        id,
-      },
-    });
-    return res.json(user);
-  } catch (e) {
-    return res.status(400).json(e);
-  }
+// サーバー起動
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
-
-app.post("/posts", async (req: Request, res: Response) => {
-  const { title, content, authorId } = req.body;
-  try {
-    const post = await prisma.post.create({
-      data: {
-        title,
-        content,
-        authorId,
-      },
-    });
-    return res.json(post);
-  } catch (e) {
-    return res.status(400).json(e);
-  }
-});
-
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));

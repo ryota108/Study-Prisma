@@ -10,17 +10,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id      Int      @id @default(autoincrement())
-  email   String   @unique
-  name    String?
- Posts Post[]
+model Restaurant {
+  id             String       @id @default(uuid())
+  name           String
+  other_memo     String?
+  capacity       Int
+  official       String?
+  youtube        String?
+  close          String
+  open           String
+  card           Boolean
+  wifi           Boolean
+  private_room   Boolean
+  catch          String
+  party_capacity Int
+  address        String
+  midnight       Boolean
+  charter        Boolean
+  original       Boolean
+  budgetId       String? //int か２文字の制限　or uuid UP_TO_1000 <= 仕様変更時めちゃくちゃ大変　ホットペッパーのID AB BC  => 1000 複数持たせることも可能 配列もどき ["AB","BC"]
+  genreId        String?
+  photo          String
 }
 
-model Post {
-  id Int @id @default(autoincrement())
-  title String
-  content String?
-  author User @relation(fields:[authorId],references:[id])
-  authorId Int
-}
